@@ -1,0 +1,53 @@
+# ===== 密钥与凭据（防止敏感信息上传 GitHub）=====
+
+# SSH / TLS 私钥
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.ppk
+*.jks
+
+# 云服务与 API 凭据
+secrets.*
+credentials*.json
+service-account*.json
+*_api_key*
+*.token
+
+# ===== 环境变量文件 =====
+
+.env
+.env.*
+!.env.example
+
+# ===== 缓存与临时文件 =====
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# 系统与编辑器缓存
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.idea/
+.vscode/
+*.tmp
+*.log
