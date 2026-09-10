@@ -2,7 +2,7 @@
 
 > 概念英文名：Context / Context Window（上下文窗口）
 > 所属分支：大模型推理机制
-> 本笔记按"个人解释 → 核心机制 → 应用场景 → 易混淆边界 → 可核查资料"五部分组织。
+> 本笔记按"个人解释 → 核心机制 → 应用场景 → 易混淆边界 → 自测题 → 参考文献"组织，参考文献均为一手原始技术报告。
 
 ## 1. 个人解释
 
@@ -14,18 +14,31 @@
 
 **（1）技术底座：自注意力机制。** 上下文的实现依赖 Transformer 的自注意力（self-attention）结构：序列中每个 token 都能"关注"其他 token，从而实现长程关联。这是《Attention Is All You Need》提出的核心机制。
 
-**（2）上下文窗口的构成。** 一次推理中，上下文通常按顺序拼接以下内容：
+**（2）上下文窗口的原理：为什么窗口是固定长度。**
+
+- **窗口 = 最大序列长度**：上下文窗口本质上是模型**一次前向推理能处理的最大 token 序列长度**。这个上限由训练阶段决定——模型的位置编码（让模型感知 token 顺序的机制）和注意力分布只在训练长度内被充分学习，超出该长度的位置模型从未"见过"，因此无法直接可靠处理。
+- **注意力的平方代价**：自注意力要求每个 token 与窗口内所有 token 两两计算关联，计算量随长度呈平方级（O(n²)）增长——窗口翻倍，计算开销约翻两番，这是窗口不能无限做大的根本工程约束之一。
+- **自回归生成，输入输出共享窗口**：模型逐个 token 生成回答，已生成的输出 token 会接在输入之后继续参与后续计算，因此**输入 + 输出共同消耗同一个窗口预算**，而不是"问题占窗口、回答另算"。
+- **超出即截断**：多轮对话累计超出窗口时，系统只能丢弃最早的内容（滚动截断/滑动窗口）或压缩摘要，早期信息随之丢失——这就是长对话中模型"忘事"的机制根源。
+
+**（3）Token 限制：窗口的计量单位与实际约束。**
+
+- **Token 是分词单位**：模型不直接读字符，而是先经分词器（tokenizer）把文本切成 token；英文约 1 token ≈ 0.75 个单词，中文通常 1 个汉字 ≈ 1–2 个 token，因此同样窗口下中文实际可容纳的"字数"更少。
+- **窗口大小的发展**：从 GPT-3 论文时代的 2048 token，发展到当前主流模型的 200K 直至 1M token 量级——百万级窗口需要专门的位置编码外推技术，且仍受下述"中间信息利用率下降"的制约。
+- **输出上限远小于输入上限**：即使输入窗口很大，单次生成的最大输出长度通常仍限制在数千到数万 token 量级，"能读长文"不等于"能一口气写长文"。
+- **成本与延迟随 token 线性增长**：API 计费与响应延迟通常与输入、输出 token 数正相关，塞满上下文既贵又慢。
+
+**（4）上下文窗口的构成。** 一次推理中，上下文通常按顺序拼接以下内容：
 
 ```
 [系统提示词] + [对话历史] + [检索资料/RAG 注入内容] + [工具/技能定义] + [当前问题]
 ```
 
-**（3）关键性质：**
+**（5）关键性质：**
 
-- **容量有限**：窗口以 token 计（如 128K、200K），所有组成部分共享这块容量，工具定义和检索内容都会挤占对话空间。
+- **容量有限**：所有组成部分共享一块窗口容量，工具定义和检索内容都会挤占对话空间。
 - **位置敏感（Lost in the Middle）**：斯坦福等机构的研究发现，模型对开头和结尾的信息利用最好，埋在长文本**中间**的关键信息会被显著忽略——"窗口大"不等于"用得好"。
-- **成本随长度增长**：计费与延迟通常与输入 token 数正相关，无脑塞满上下文既贵又慢。
-- **上下文学习（In-context Learning）**：在上下文中给出示例（few-shot）就能引导模型行为，无需重新训练——这是上下文最重要的应用性质。
+- **上下文学习（In-context Learning）**：在上下文中给出示例（few-shot）就能引导模型行为，无需重新训练——这是 GPT-3 论文系统验证的上下文最重要的应用性质。
 
 ## 3. 一个具体应用场景
 
@@ -47,14 +60,70 @@
 
 - **上下文 ≠ 记忆**：关掉会话，模型对之前的内容一无所知；"长期记忆"都是应用层把历史存档后再选择性注入上下文实现的。
 - **窗口大 ≠ 用得好**：长上下文中部信息利用率显著下降（Lost in the Middle），关键信息应尽量放在开头或结尾。
+- **窗口标称值 ≠ 有效工作范围**：受位置编码外推与注意力稀释影响，模型在接近窗口上限时的可靠性明显低于短上下文场景，工程上应把"有效窗口"当作比标称窗口更小的预算来规划。
+- **输入上限 ≠ 输出上限**：输出另受单次生成长度限制，长文档产出需要分段生成再拼接的策略。
 - **塞满上下文 ≠ 更聪明**：无关内容会稀释注意力并推高成本，"少而准"往往优于"多而全"。
 - **上下文里有 ≠ 不幻觉**：即使资料已注入上下文，模型仍可能答错或编造，关键决策仍需人工核对原文。
 
-## 5. 可核查的公开资料链接
+## 5. 自测题（含参考答案）
 
-- [Lost in the Middle: How Language Models Use Long Contexts — arXiv:2307.03172](https://arxiv.org/abs/2307.03172) —— 斯坦福等机构论文，实证揭示"中间信息被忽略"现象（论文，已核实可访问）。
-- [Attention Is All You Need — arXiv:1706.03762](https://arxiv.org/abs/1706.03762) —— Transformer 原始论文，自注意力机制即上下文处理的技术底座（论文）。
-- [Effective Context Engineering for AI Agents — Anthropic Engineering Blog](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) —— Anthropic 官方对上下文工程（Context Engineering）的系统阐述（官方工程博客）。
-- [Prompt Engineering Guide — promptingguide.ai](https://www.promptingguide.ai/) —— 开源提示工程指南，含 few-shot / 上下文学习等专题（社区维护的知名教程站）。
+### 选择题
 
-> 注：本笔记"位置敏感"部分的结论来自第 1 条论文；技术底座来自第 2 条论文；上下文工程视角参考第 3 条。
+**1. 上下文窗口指的是？**
+
+A. 模型训练数据的总规模
+B. 模型一次前向推理能处理的最大 token 序列长度
+C. 模型的参数量
+D. 模型可调用的工具数量
+
+**2. "Lost in the Middle" 现象指的是？**
+
+A. 窗口中间的内容被系统自动删除
+B. 埋在长文本中间位置的关键信息利用率显著下降
+C. 模型中间层参数丢失
+D. 多轮对话从中间开始截断
+
+**3. 关于输入与输出的 token 预算，下列说法正确的是？**
+
+A. 输出 token 不占用上下文窗口
+B. 输入与输出共享同一个窗口预算
+C. 输出长度没有上限
+D. 输入 token 不产生费用
+
+**4. 在上下文中给出几个示例就能引导模型行为（few-shot），这一机制称为？**
+
+A. 微调（Fine-tuning）
+B. 上下文学习（In-context Learning）
+C. 检索增强生成（RAG）
+D. 知识蒸馏
+
+### 简答题
+
+**1. 为什么说"窗口大 ≠ 用得好"？请结合 Lost in the Middle 现象说明。**
+
+**2. 多轮长对话中，早期内容被截断挤出窗口会带来什么问题？给出至少两种工程应对手段。**
+
+### 参考答案
+
+**选择题：** 1-B（见第 2 节"窗口 = 最大序列长度"）；2-B（见第 2 节关键性质）；3-B（见第 2 节"自回归生成，输入输出共享窗口"）；4-B（见第 2 节，GPT-3 论文验证的性质）。
+
+**简答题：**
+
+1. 研究发现模型对长文本开头和结尾的信息利用最好，而埋在中间的关键信息会被显著忽略；即便窗口标称很大，把关键资料无差别塞入并淹没在中间位置，实际利用率依然很低。因此有效做法是控制注入内容数量与排列位置（关键信息放开头/结尾），而非单纯依赖大窗口。
+2. 问题：模型对早期约定、目标或事实"失忆"，导致重复劳动、目标漂移、前后矛盾。应对手段：① 对话历史压缩摘要（保留目标、进度、关键决策，丢弃冗余细节）；② 外部记忆（向量库/文件）按需召回，仅把当前相关片段注入上下文；③ 结构化笔记回写关键状态，跨轮次携带核心信息。（答出其中两种即可）
+
+## 6. 参考文献
+
+[1] Vaswani, A., Shazeer, N., Parmar, N., et al. Attention Is All You Need. arXiv preprint arXiv:1706.03762, NeurIPS 2017. https://arxiv.org/abs/1706.03762
+
+[2] Brown, T.B., Mann, B., Ryder, N., et al. Language Models are Few-Shot Learners. arXiv preprint arXiv:2005.14165, NeurIPS 2020.（OpenAI GPT-3 技术报告） https://arxiv.org/abs/2005.14165
+
+[3] Liu, N.F., Lin, K., Hewitt, J., et al. Lost in the Middle: How Language Models Use Long Contexts. arXiv preprint arXiv:2307.03172, TACL 2023. https://arxiv.org/abs/2307.03172
+
+[4] Anthropic. Effective Context Engineering for AI Agents. Anthropic Engineering Blog, 2025. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+
+[5] Anthropic. Managing Context on the Claude Developer Platform. Anthropic Official Announcement, 2025. https://www.anthropic.com/news/context-management
+
+[6] Anthropic. Context Windows. Claude Platform Official Documentation. https://platform.claude.com/docs/en/build-with-claude/context-windows
+
+> 正文关键论断来源：自注意力机制出自 [1]；2048 token 窗口与上下文学习（few-shot）出自 [2]；中间信息利用率下降出自 [3]；上下文工程实践（注意力预算、压缩、按需检索）出自 [4]；上下文编辑与自动压缩能力出自 [5]；当前模型窗口规模（200K–1M）与输出上限出自 [6]。

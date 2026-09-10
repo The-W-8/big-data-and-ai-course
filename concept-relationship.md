@@ -13,7 +13,28 @@
 | 生命周期 | 任务全程持续运行 | 每次推理重新拼接 | 长期沉淀，触发时加载 |
 | 相互关系 | 依赖上下文运转，可调用 Skill | 承载 Agent 的感知，也承载 Skill 的注入 | 按需进入上下文，增强 Agent |
 
-## 2. 结构图（Mermaid）
+## 2. 三者核心关系图（Mermaid）
+
+### 2.1 总览：三者如何咬合
+
+```mermaid
+flowchart TD
+    User([用户提出目标]) --> Agent["Agent（LLM 为大脑的自主系统）"]
+
+    Agent -->|"① 每轮读取全部输入"| CW["上下文窗口 Context Window<br/>（一次推理的全部输入空间）"]
+    CW -->|"② 支撑决策：目标 / 历史 / 工具反馈 / Skill 指令"| Agent
+    Agent -->|"③ 调用工具，环境反馈写回窗口"| CW
+
+    Skill[("Skill 知识包<br/>SKILL.md + 脚本 + 资料")]
+    Skill -.->|"④ 任务匹配时<br/>渐进式注入（平时仅元数据常驻）"| CW
+    Agent -.->|"⑤ 执行经验沉淀<br/>迭代更新知识包"| Skill
+
+    Agent --> Result([任务完成，交付结果])
+```
+
+**读图要点：** ①②③ 构成 Agent 的运行循环——上下文窗口是每一轮决策的唯一信息来源；④ 表示 Skill 平时躺在文件系统里，只在任务匹配时才把指令注入窗口；⑤ 表示执行中获得的经验可以回流更新 Skill，形成知识沉淀闭环。
+
+### 2.2 展开图：Agent 系统内部结构
 
 ```mermaid
 flowchart TD
@@ -22,7 +43,7 @@ flowchart TD
     subgraph AgentSystem["Agent 系统（循环执行）"]
         Agent[Agent 大脑 = LLM]
 
-        subgraph Context["上下文（每次推理的完整输入）"]
+        subgraph Context["上下文窗口（每次推理的完整输入）"]
             SP[系统提示词]
             Hist[对话历史 / 工具调用结果]
             SkillInject[被触发的 Skill 指令]
@@ -41,7 +62,7 @@ flowchart TD
 
 **读图要点：**
 
-- Agent 的每一次决策，都是在读取整个上下文之后做出的——上下文是 Agent 与世界打交道的唯一通道；
+- Agent 的每一次决策，都是在读取整个上下文窗口之后做出的——上下文是 Agent 与世界打交道的唯一通道；
 - 工具执行的反馈会作为新的上下文写回，驱动下一轮决策（"LLM 在循环中根据环境反馈使用工具"）；
 - Skill 平时静静躺在文件系统里，只有当任务匹配时才被注入上下文，用完即走，不长期占地方。
 
@@ -87,9 +108,16 @@ Skill 的三级加载机制与上下文天然配合：平时只有百来 token �
 
 ---
 
-参考（链接详见各学习笔记）：
+## 参考文献
 
-- Lilian Weng《LLM Powered Autonomous Agents》：https://lilianweng.github.io/posts/2023-06-23-agent/
-- Anthropic《Building Effective Agents》：https://www.anthropic.com/engineering/building-effective-agents
-- 《Lost in the Middle》论文：https://arxiv.org/abs/2307.03172
-- Anthropic Agent Skills 官方博客：https://claude.com/blog/skills
+[1] Anthropic. Building Effective Agents. Anthropic Engineering Blog, 2024-12-19. https://www.anthropic.com/engineering/building-effective-agents
+
+[2] Anthropic. Effective Context Engineering for AI Agents. Anthropic Engineering Blog, 2025. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+
+[3] Anthropic. Equipping Agents for the Real World with Agent Skills. Anthropic Engineering Blog, 2025. https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+
+[4] Shavit, Y., Agarwal, S., Brundage, M., et al. Practices for Governing Agentic AI Systems. OpenAI White Paper, 2023. https://openai.com/index/practices-for-governing-agentic-ai-systems
+
+[5] Brown, T.B., Mann, B., Ryder, N., et al. Language Models are Few-Shot Learners. arXiv preprint arXiv:2005.14165, NeurIPS 2020.（OpenAI GPT-3 技术报告） https://arxiv.org/abs/2005.14165
+
+> 本文关键论断来源：Agent 定义与 Workflow/Agent 区分出自 [1]；上下文是注意力预算、压缩与按需检索出自 [2]；Skill 渐进式披露与知识沉淀出自 [3]；Agent 安全治理（人类监督、最小权限）出自 [4]；上下文学习出自 [5]。

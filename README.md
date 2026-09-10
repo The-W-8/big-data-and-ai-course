@@ -42,18 +42,18 @@ big-data-and-ai-course/
 1. Skill 由 AI 根据请求自动匹配触发（判断依据是 SKILL.md 中的 `name` 与 `description`），无需手动选择；
 2. **必填输入**：概念名称（如"思维链""KV 缓存""多模态"等任意 AI 概念）；
 3. **可选输入**：学习背景（入门/进阶）、侧重方向（原理/工程/应用）、输出语言（默认中文）；
-4. 产出物为一份固定五部分结构的 Markdown 笔记：①个人解释 ②核心机制或组成 ③一个具体应用场景 ④易混淆问题或使用边界 ⑤可核查的公开资料链接，保存到 `learning-materials/` 下即可。
+4. 产出物为一份固定六部分结构的 Markdown 笔记：①个人解释 ②核心机制或组成 ③一个具体应用场景 ④易混淆问题或使用边界 ⑤自测题（含参考答案） ⑥参考文献（仅一手原始技术报告，规范引用格式），保存到 `learning-materials/` 下即可。SKILL.md 内含完整工作流程的 Mermaid 流程图。
 
 ## 仓库内已包含的学习资料
 
 | 文件 | 内容 |
 | --- | --- |
-| `learning-materials/agent.md` | AI Agent：定义、四大组成（LLM/规划/记忆/工具）、编码智能体案例、与 Chatbot/Workflow 的区别 |
-| `learning-materials/llm-context.md` | 大模型上下文：窗口机制、Lost in the Middle、RAG 应用、上下文 vs 记忆 vs 微调 |
-| `learning-materials/skill-concept.md` | Skill：SKILL.md 结构、渐进式披露三级加载、周报技能案例、与 Prompt/MCP 的区别 |
-| `concept-relationship.md` | 三者关系：上下文如何影响 Agent 运行、Skill 如何沉淀可复用知识（含 Mermaid 图） |
+| `learning-materials/agent.md` | AI Agent：定义、四大组成（LLM/规划/记忆/工具）、编码智能体案例、与 Chatbot/Workflow 的区别、自测题 |
+| `learning-materials/llm-context.md` | 大模型上下文：窗口原理、token 限制、Lost in the Middle、RAG 应用、使用边界、自测题 |
+| `learning-materials/skill-concept.md` | Skill：SKILL.md 结构、渐进式披露三级加载、周报技能案例、与 Prompt/MCP 的区别、自测题 |
+| `concept-relationship.md` | 三者关系：上下文窗口如何影响 Agent 运行、Skill 如何沉淀可复用知识（含 2 幅 Mermaid 图） |
 
-三份概念笔记的资料来源包括 Lilian Weng 的 Agent 综述、Anthropic 官方工程博客与 Agent Skills 文档、arXiv 论文等，链接均已在各笔记第 5 部分列明。
+三份概念笔记与关系文档的参考文献均为一手原始技术报告（Anthropic / OpenAI 官方论文、官方工程博客、官方文档及 arXiv 原始论文，如 Anthropic《Building Effective Agents》、OpenAI《Practices for Governing Agentic AI Systems》、GPT-3 论文《Language Models are Few-Shot Learners》等），采用规范引用格式列于每份文档末尾，不含百科、自媒体等二次来源。
 
 ## AI 生成初稿之后的人工核查清单
 
